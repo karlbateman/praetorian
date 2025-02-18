@@ -1,0 +1,4 @@
+{
+    "recommendations": ["golang.go", "mads-hartmann.bash-ide-vscode"],
+    "unwantedRecommendations": []
+}

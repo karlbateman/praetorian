@@ -1,0 +1,19 @@
+{
+  "[go]": {
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    },
+    "editor.defaultFormatter": "golang.go",
+    "editor.formatOnSave": true,
+    "editor.insertSpaces": false
+  },
+  "files.exclude": {
+    "*.bazel.lock": true,
+    "**/.DS_Store": true,
+    "**/.git": true,
+    "**/.hg": true,
+    "**/.svn": true,
+    "**/Thumbs.db": true,
+    "bazel-*": true
+  }
+}
