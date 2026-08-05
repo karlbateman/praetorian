@@ -3,7 +3,6 @@
 package praetorian_test
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -40,7 +39,7 @@ func TestServer_StartGracefulShutdown(t *testing.T) {
 	t.Setenv(praetorian.EnvKey, testConfig)
 	t.Setenv("PORT", "8080")
 
-	var buff bytes.Buffer
+	var buff syncBuffer
 	log.SetOutput(&buff)
 	defer log.SetOutput(nil)
 
@@ -54,8 +53,9 @@ func TestServer_StartGracefulShutdown(t *testing.T) {
 	}
 	srv := praetorian.NewServer(ks)
 
+	startErr := make(chan error, 1)
 	go func() {
-		_ = srv.Start()
+		startErr <- srv.Start()
 	}()
 
 	time.Sleep(500 * time.Millisecond)
@@ -63,9 +63,11 @@ func TestServer_StartGracefulShutdown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("os.FindProcess() failed to return the current process: %v", err)
 	}
-
 	p.Signal(os.Interrupt)
-	time.Sleep(500 * time.Millisecond)
+
+	if err := <-startErr; err != nil {
+		t.Fatalf("Server.Start() returned unexpected error: %v", err)
+	}
 	out := buff.String()
 
 	wantShutdown := "performing graceful shutdown"

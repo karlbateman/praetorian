@@ -3,9 +3,11 @@
 package praetorian_test
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/karlbateman/praetorian"
@@ -14,6 +16,25 @@ import (
 const (
 	testConfig = `{"activeKeyId": "1", "rootKeys": {"1": "kSRFQxepULO9UC5SL5pA/mXjbI1GXu9ha2T0yPr3scU="}}`
 )
+
+// syncBuffer is a bytes.Buffer safe for concurrent Write and String calls, for
+// capturing log output written by a background goroutine under test.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
 
 type MockReader struct {
 	Data  []byte
