@@ -3,6 +3,7 @@
 package praetorian_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -63,6 +64,23 @@ func TestHandleUnwrap(t *testing.T) {
 				t.Errorf("HandleUnwrap() got = %v, wantResult = %v", got, want)
 			}
 		})
+	}
+}
+
+// BenchmarkHandleUnwrap guards against regressions in the per-request cost
+// of the /unwrap handler's happy path: decoding the request, decrypting,
+// and encoding the response.
+func BenchmarkHandleUnwrap(b *testing.B) {
+	ks := &MockKeystore{}
+	handler := praetorian.HandleUnwrap(ks)
+	body := []byte(`{}`)
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/unwrap", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
 	}
 }
 

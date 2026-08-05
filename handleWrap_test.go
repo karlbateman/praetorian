@@ -71,6 +71,23 @@ func TestHandleWrap(t *testing.T) {
 	}
 }
 
+// BenchmarkHandleWrap guards against regressions in the per-request cost of
+// the /wrap handler's happy path: reading the body, validating JSON,
+// encrypting, and encoding the response.
+func BenchmarkHandleWrap(b *testing.B) {
+	ks := &MockKeystore{}
+	handler := praetorian.HandleWrap(praetorian.ActiveKeyID, ks)
+	body := []byte(`{"value": "keep it secret, keep it safe"}`)
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/wrap", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+	}
+}
+
 func TestHandleWrap_Errors(t *testing.T) {
 	tests := []struct {
 		name        string

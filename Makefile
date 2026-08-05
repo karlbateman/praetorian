@@ -4,6 +4,10 @@
 .ONESHELL:
 .DEFAULT_GOAL = help
 
+.PHONY: bench
+bench: ## Run benchmarks.
+	./scripts/bench.sh
+
 .PHONY: build
 build: ## Build the source files into a single binary.
 	./scripts/build.sh
