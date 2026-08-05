@@ -5,35 +5,39 @@ package praetorian
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"fmt"
+	"errors"
 	"sync"
 )
 
-type keystore struct {
-	sync.Map
+// Keystore is an in-memory KeyFinder backed by root keys loaded from a
+// Config.
+type Keystore struct {
+	keys sync.Map
 }
 
-// NewKeyset initializes a new Keyring from the provided config and returns it.
-func NewKeystore(cfg *config) (KeyFinder, error) {
-	ks := &keystore{}
+// NewKeystore initializes a new Keystore from the provided config and returns it.
+func NewKeystore(cfg *Config) (*Keystore, error) {
+	ks := &Keystore{}
 	for id, val := range cfg.RootKeys {
 		if id == cfg.ActiveKeyID {
-			ks.Store("active", &key{id, val})
+			ks.keys.Store(ActiveKeyID, &key{id, val})
 		}
-		ks.Store(id, &key{id, val})
+		ks.keys.Store(id, &key{id, val})
 	}
 	return ks, nil
 }
 
 // Find a root key with the given identifier.
-func (ks *keystore) Find(id string) (RootKey, error) {
-	if k, ok := ks.Load(id); ok {
-		if key, ok := k.(*key); ok {
-			return key, nil
-		}
-		return nil, fmt.Errorf("stored value is not a key: %T", k)
+func (ks *Keystore) Find(id string) (RootKey, error) {
+	k, ok := ks.keys.Load(id)
+	if !ok {
+		return nil, ErrRootKeyNotFound
 	}
-	return nil, ErrRootKeyNotFound
+	rk, ok := k.(*key)
+	if !ok {
+		return nil, errors.New("keystore: corrupted entry")
+	}
+	return rk, nil
 }
 
 type key struct {
@@ -48,19 +52,28 @@ func (k *key) ID() string {
 
 // Encrypt the given data using the current root key.
 func (k *key) Encrypt(d []byte) ([]byte, error) {
-	block, err := aes.NewCipher(k.value)
+	gcm, err := k.gcm()
 	if err != nil {
-		return nil, ErrNewCipherBlock
-	}
-	gcm, err := cipher.NewGCMWithRandomNonce(block)
-	if err != nil {
-		return nil, ErrNewGCMWithRandomNonce
+		return nil, err
 	}
 	return gcm.Seal(nil, nil, d, nil), nil
 }
 
 // Decrypt the given data using the current root key.
 func (k *key) Decrypt(d []byte) ([]byte, error) {
+	gcm, err := k.gcm()
+	if err != nil {
+		return nil, err
+	}
+	ci, err := gcm.Open(nil, nil, d, nil)
+	if err != nil {
+		return nil, ErrGCMOpen
+	}
+	return ci, nil
+}
+
+// gcm builds the AEAD cipher used to encrypt and decrypt with this key.
+func (k *key) gcm() (cipher.AEAD, error) {
 	block, err := aes.NewCipher(k.value)
 	if err != nil {
 		return nil, ErrNewCipherBlock
@@ -69,9 +82,5 @@ func (k *key) Decrypt(d []byte) ([]byte, error) {
 	if err != nil {
 		return nil, ErrNewGCMWithRandomNonce
 	}
-	ci, err := gcm.Open(nil, nil, d, nil)
-	if err != nil {
-		return nil, ErrGCMOpen
-	}
-	return ci, nil
+	return gcm, nil
 }

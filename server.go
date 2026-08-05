@@ -5,6 +5,7 @@ package praetorian
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,7 +19,8 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
-type server struct {
+// Server serves the wrap and unwrap operations over an HTTP interface.
+type Server struct {
 	*http.Server
 	keys     KeyFinder
 	mux      *http.ServeMux
@@ -26,15 +28,15 @@ type server struct {
 }
 
 // NewServer allows wrapping and unwrapping to occur over a HTTP interface.
-func NewServer(keys KeyFinder) *server {
+func NewServer(keys KeyFinder) *Server {
 	addr := fmt.Sprintf(":%s", port())
 	mux := http.NewServeMux()
 
-	srv := &server{
+	srv := &Server{
 		keys: keys,
 		mux:  mux,
 	}
-	srv.Routes()
+	srv.routes()
 
 	srv.Server = &http.Server{
 		Addr:    addr,
@@ -45,20 +47,20 @@ func NewServer(keys KeyFinder) *server {
 	return srv
 }
 
-// Routes sets up HTTP endpoints and configures the respective handlers.
-func (s *server) Routes() {
+// routes sets up HTTP endpoints and configures the respective handlers.
+func (s *Server) routes() {
 	s.mux.HandleFunc("/wrap", HandleWrap(ActiveKeyID, s.keys))
 	s.mux.HandleFunc("/unwrap", HandleUnwrap(s.keys))
 }
 
 // Start launches the server which listens for HTTP requests.
-func (s *server) Start() error {
+func (s *Server) Start() error {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
 	go func() {
 		log.Printf("listening on %s...\n", s.Server.Addr)
-		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Println("server error:", err)
 		}
 	}()
@@ -70,8 +72,7 @@ func (s *server) Start() error {
 	defer cancel()
 
 	if err := s.Shutdown(ctx); err != nil {
-		log.Println("forced shutdown:", err)
-		return err
+		return fmt.Errorf("forced shutdown: %w", err)
 	}
 
 	log.Println("server shutdown successful")
@@ -92,5 +93,8 @@ func jsonResponse(w http.ResponseWriter, status int, data any) {
 
 	encoder := json.NewEncoder(w)
 	encoder.SetEscapeHTML(false)
-	encoder.Encode(data)
+	if err := encoder.Encode(data); err != nil {
+		// The status and headers are already written, so this can only be logged.
+		log.Println("failed to encode JSON response:", err)
+	}
 }

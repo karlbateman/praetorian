@@ -35,11 +35,11 @@ func TestKeystore_Find(t *testing.T) {
 			t.Setenv(praetorian.EnvKey, tt.config)
 			cfg, err := praetorian.NewConfig()
 			if err != nil {
-				t.Errorf("NewConfig() failed to create config: %v", err)
+				t.Fatalf("NewConfig() failed to create config: %v", err)
 			}
 			ks, err := praetorian.NewKeystore(cfg)
 			if err != nil {
-				t.Errorf("NewKeystore() failed to create keystore: %v", err)
+				t.Fatalf("NewKeystore() failed to create keystore: %v", err)
 			}
 
 			_, err = ks.Find(tt.id)
@@ -68,20 +68,20 @@ func TestKey_Encrypt(t *testing.T) {
 			t.Setenv(praetorian.EnvKey, testConfig)
 			cfg, err := praetorian.NewConfig()
 			if err != nil {
-				t.Errorf("NewConfig() failed to create config: %v", err)
+				t.Fatalf("NewConfig() failed to create config: %v", err)
 			}
 			ks, err := praetorian.NewKeystore(cfg)
 			if err != nil {
-				t.Errorf("NewKeystore() failed to create keystore: %v", err)
+				t.Fatalf("NewKeystore() failed to create keystore: %v", err)
 			}
 
 			k, err := ks.Find("1")
 			if err != nil {
-				t.Errorf("Keystore.Find() failed to return key: %v", err)
+				t.Fatalf("Keystore.Find() failed to return key: %v", err)
 			}
 
 			result, err := k.Encrypt(tt.data)
-			if tt.wantErr != nil && errors.Is(err, tt.wantErr) {
+			if tt.wantErr != nil && !errors.Is(err, tt.wantErr) {
 				t.Errorf("Key.Encrypt() error = %v, wantErr = %v", err, tt.wantErr)
 			}
 			if len(result) == 0 {
@@ -109,28 +109,28 @@ func TestKey_Decrypt(t *testing.T) {
 			t.Setenv(praetorian.EnvKey, `{"activeKeyId": "1", "rootKeys": {"1": "kSRFQxepULO9UC5SL5pA/mXjbI1GXu9ha2T0yPr3scU="}}`)
 			cfg, err := praetorian.NewConfig()
 			if err != nil {
-				t.Errorf("NewConfig() failed to create config: %v", err)
+				t.Fatalf("NewConfig() failed to create config: %v", err)
 			}
 			ks, err := praetorian.NewKeystore(cfg)
 			if err != nil {
-				t.Errorf("NewKeystore() failed to create keystore: %v", err)
+				t.Fatalf("NewKeystore() failed to create keystore: %v", err)
 			}
 
 			k, err := ks.Find("1")
 			if err != nil {
-				t.Errorf("Keystore.Find() failed to return key: %v", err)
+				t.Fatalf("Keystore.Find() failed to return key: %v", err)
 			}
 
 			enc, err := k.Encrypt(tt.data)
 			if err != nil {
-				t.Errorf("Key.Encrypt() failed to encrypt data: %v", err)
+				t.Fatalf("Key.Encrypt() failed to encrypt data: %v", err)
 			}
 			if len(enc) == 0 {
 				t.Errorf("Key.Encrypt() did not return an encrypted result")
 			}
 
 			result, err := k.Decrypt(enc)
-			if tt.wantErr != nil && errors.Is(err, tt.wantErr) {
+			if tt.wantErr != nil && !errors.Is(err, tt.wantErr) {
 				t.Errorf("Key.Decrypt() error = %v, wantErr = %v", err, tt.wantErr)
 			}
 

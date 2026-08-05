@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -21,11 +22,11 @@ func TestNewServer(t *testing.T) {
 
 	cfg, err := praetorian.NewConfig()
 	if err != nil {
-		t.Errorf("NewConfig() failed to create config: %v", err)
+		t.Fatalf("NewConfig() failed to create config: %v", err)
 	}
 	ks, err := praetorian.NewKeystore(cfg)
 	if err != nil {
-		t.Errorf("NewKeystore() failed to create keystore: %v", err)
+		t.Fatalf("NewKeystore() failed to create keystore: %v", err)
 	}
 	srv := praetorian.NewServer(ks)
 
@@ -45,11 +46,11 @@ func TestServer_StartGracefulShutdown(t *testing.T) {
 
 	cfg, err := praetorian.NewConfig()
 	if err != nil {
-		t.Errorf("NewConfig() failed to create config: %v", err)
+		t.Fatalf("NewConfig() failed to create config: %v", err)
 	}
 	ks, err := praetorian.NewKeystore(cfg)
 	if err != nil {
-		t.Errorf("NewKeystore() failed to create keystore: %v", err)
+		t.Fatalf("NewKeystore() failed to create keystore: %v", err)
 	}
 	srv := praetorian.NewServer(ks)
 
@@ -60,7 +61,7 @@ func TestServer_StartGracefulShutdown(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	p, err := os.FindProcess(os.Getpid())
 	if err != nil {
-		t.Errorf("os.FindProcess() failed to return the current process: %v", err)
+		t.Fatalf("os.FindProcess() failed to return the current process: %v", err)
 	}
 
 	p.Signal(os.Interrupt)
@@ -82,17 +83,19 @@ func TestServer_StartForcedShutdown(t *testing.T) {
 	t.Setenv(praetorian.EnvKey, testConfig)
 	t.Setenv("PORT", "8080")
 
-	var buff bytes.Buffer
-	log.SetOutput(&buff)
+	// Start() logs from a background goroutine regardless of this test's
+	// assertions; give it a sink so it doesn't write to a stale output left
+	// behind by a previous test's cleanup.
+	log.SetOutput(io.Discard)
 	defer log.SetOutput(nil)
 
 	cfg, err := praetorian.NewConfig()
 	if err != nil {
-		t.Errorf("NewConfig() failed to create config: %v", err)
+		t.Fatalf("NewConfig() failed to create config: %v", err)
 	}
 	ks, err := praetorian.NewKeystore(cfg)
 	if err != nil {
-		t.Errorf("NewKeystore() failed to create keystore: %v", err)
+		t.Fatalf("NewKeystore() failed to create keystore: %v", err)
 	}
 
 	srv := praetorian.NewServer(ks)
@@ -100,22 +103,21 @@ func TestServer_StartForcedShutdown(t *testing.T) {
 		return fmt.Errorf("mock forced shutdown error")
 	}
 
+	startErr := make(chan error, 1)
 	go func() {
-		_ = srv.Start()
+		startErr <- srv.Start()
 	}()
 
 	time.Sleep(500 * time.Millisecond)
 	p, err := os.FindProcess(os.Getpid())
 	if err != nil {
-		t.Errorf("os.FindProcess() failed to return the current process: %v", err)
+		t.Fatalf("os.FindProcess() failed to return the current process: %v", err)
 	}
-
 	p.Signal(os.Interrupt)
-	time.Sleep(500 * time.Millisecond)
-	out := buff.String()
 
-	wantShutdown := "forced shutdown"
-	if !strings.Contains(out, wantShutdown) {
-		t.Errorf("Server.Start() log = %q, wantShutdown = %q", out, wantShutdown)
+	err = <-startErr
+	wantSubstring := "forced shutdown"
+	if err == nil || !strings.Contains(err.Error(), wantSubstring) {
+		t.Errorf("Server.Start() error = %v, want substring %q", err, wantSubstring)
 	}
 }

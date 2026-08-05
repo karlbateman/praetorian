@@ -8,20 +8,24 @@ import (
 	"time"
 )
 
-type LoggerResponse struct {
+// loggerResponse captures the status code written by the wrapped handler so
+// it can be included in the request log line.
+type loggerResponse struct {
 	http.ResponseWriter
 	statusCode int
 }
 
-func (lr *LoggerResponse) WriteHeader(code int) {
+func (lr *loggerResponse) WriteHeader(code int) {
 	lr.statusCode = code
 	lr.ResponseWriter.WriteHeader(code)
 }
 
+// NewLogger wraps next with a handler that logs each request's method, path,
+// status code, duration, and remote address.
 func NewLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		lr := &LoggerResponse{ResponseWriter: w, statusCode: http.StatusOK}
+		lr := &loggerResponse{ResponseWriter: w, statusCode: http.StatusOK}
 		next.ServeHTTP(lr, r)
 		log.Printf("%s %s %d %s from %s\n", r.Method, r.URL.Path, lr.statusCode, time.Since(start), r.RemoteAddr)
 	})

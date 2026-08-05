@@ -8,13 +8,14 @@ import (
 	"os"
 )
 
-type config struct {
+// Config is a key configuration decoded from the environment.
+type Config struct {
 	ActiveKeyID string
 	RootKeys    map[string][]byte
 }
 
 // NewConfig returns a key configuration from the environment.
-func NewConfig() (*config, error) {
+func NewConfig() (*Config, error) {
 	val := os.Getenv(EnvKey)
 	if val == "" {
 		return nil, ErrEnvConfigEmpty
@@ -30,23 +31,23 @@ func NewConfig() (*config, error) {
 		return nil, ErrEnvConfigInvalid
 	}
 
-	c := &config{
+	if _, ok := env.RootKeys[env.ActiveKeyID]; !ok {
+		return nil, ErrActiveRootKeyNotFound
+	}
+
+	c := &Config{
 		ActiveKeyID: env.ActiveKeyID,
 		RootKeys:    make(map[string][]byte),
 	}
-
-	if _, ok := env.RootKeys[env.ActiveKeyID]; ok {
-		for i, m := range env.RootKeys {
-			k, err := base64.StdEncoding.DecodeString(m)
-			if err != nil {
-				return nil, ErrInvalidRootKey
-			}
-			if len(k) != RootKeyLength {
-				return nil, ErrInvalidRootKeyLength
-			}
-			c.RootKeys[i] = k
+	for i, m := range env.RootKeys {
+		k, err := base64.StdEncoding.DecodeString(m)
+		if err != nil {
+			return nil, ErrInvalidRootKey
 		}
-		return c, nil
+		if len(k) != RootKeyLength {
+			return nil, ErrInvalidRootKeyLength
+		}
+		c.RootKeys[i] = k
 	}
-	return nil, ErrActiveRootKeyNotFound
+	return c, nil
 }
