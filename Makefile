@@ -16,6 +16,10 @@ checks: ## Run a series of source code checks.
 docker: ## Run the Docker image build.
 	./scripts/docker.sh
 
+.PHONY: race
+race: ## Run the unit test suite with the race detector enabled.
+	./scripts/race.sh
+
 .PHONY: start
 start: ## Launch the service
 	./scripts/start.sh
