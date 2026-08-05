@@ -1,5 +1,9 @@
 // Copyright © 2025 Karl Bateman. All Rights Reserved. Use of this software is
 // governed by a BSD-style license that can be found in the LICENSE file.
+
+// Server wires the wrap and unwrap handlers onto an HTTP server and manages
+// its start-up and graceful-shutdown lifecycle.
+
 package praetorian
 
 import (

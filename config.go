@@ -1,5 +1,9 @@
 // Copyright © 2025 Karl Bateman. All Rights Reserved. Use of this software is
 // governed by a BSD-style license that can be found in the LICENSE file.
+
+// Config and NewConfig decode root key material from the environment into
+// the form the rest of the package operates on.
+
 package praetorian
 
 import (

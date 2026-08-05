@@ -1,5 +1,8 @@
 // Copyright © 2025 Karl Bateman. All Rights Reserved. Use of this software is
 // governed by a BSD-style license that can be found in the LICENSE file.
+
+// The /unwrap HTTP handler, which reverses a prior call to /wrap.
+
 package praetorian
 
 import (

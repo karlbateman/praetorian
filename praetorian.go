@@ -1,5 +1,27 @@
 // Copyright © 2025 Karl Bateman. All Rights Reserved. Use of this software is
 // governed by a BSD-style license that can be found in the LICENSE file.
+
+// Package praetorian implements a minimal key-wrapping service: it seals
+// ("wraps") and opens ("unwraps") arbitrary JSON payloads under root keys
+// that are held only in memory, and exposes both operations over HTTP.
+//
+// Root key material is loaded once at startup, from the PRAETORIAN_CONFIG
+// environment variable (see NewConfig), and never touches disk. Each root
+// key is 32 bytes of AES-256 key material; wrapping seals the request body
+// with AES-256-GCM under a randomly generated nonce (see Keystore and
+// RootKey), and unwrapping authenticates and opens a previously wrapped
+// token, rejecting it if the ciphertext has been tampered with.
+//
+// A wrap response reports the identifier of the root key actually used to
+// seal the data. A caller passes that same identifier back to unwrap, so
+// data wrapped under a since-superseded key remains decryptable for as long
+// as that key's material is still present in the configuration, even after
+// ActiveKeyID has moved on to a newer key.
+//
+// The HTTP interface (see NewServer) exposes exactly two endpoints, POST
+// /wrap and POST /unwrap. It performs no authentication of its own and is
+// intended to run behind a trusted network boundary or an authenticating
+// proxy.
 package praetorian
 
 import "errors"

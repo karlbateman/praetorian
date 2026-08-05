@@ -1,5 +1,9 @@
 // Copyright © 2025 Karl Bateman. All Rights Reserved. Use of this software is
 // governed by a BSD-style license that can be found in the LICENSE file.
+
+// Keystore is the in-memory KeyFinder used at runtime, and key is its
+// RootKey implementation, performing AES-256-GCM encryption and decryption.
+
 package praetorian
 
 import (
