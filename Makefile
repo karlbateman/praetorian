@@ -20,6 +20,10 @@ docker: ## Run the Docker image build.
 docs: ## Print the package documentation.
 	./scripts/docs.sh
 
+.PHONY: fuzz
+fuzz: ## Run fuzz tests (bounded by FUZZTIME, default 30s).
+	./scripts/fuzz.sh
+
 .PHONY: race
 race: ## Run the unit test suite with the race detector enabled.
 	./scripts/race.sh

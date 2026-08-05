@@ -91,6 +91,40 @@ func TestKey_Encrypt(t *testing.T) {
 	}
 }
 
+// FuzzKeyDecrypt exercises the one boundary in this package that handles
+// fully attacker-controlled bytes: the token an /unwrap caller supplies is
+// base64-decoded and passed straight to Decrypt. The goal is not a specific
+// return value but that malformed or malicious ciphertext is always
+// reported as an error and never panics.
+func FuzzKeyDecrypt(f *testing.F) {
+	f.Setenv(praetorian.EnvKey, testConfig)
+	cfg, err := praetorian.NewConfig()
+	if err != nil {
+		f.Fatalf("NewConfig() failed to create config: %v", err)
+	}
+	ks, err := praetorian.NewKeystore(cfg)
+	if err != nil {
+		f.Fatalf("NewKeystore() failed to create keystore: %v", err)
+	}
+	k, err := ks.Find("1")
+	if err != nil {
+		f.Fatalf("Keystore.Find() failed to return key: %v", err)
+	}
+
+	f.Add([]byte(""))
+	f.Add([]byte("not encrypted data"))
+
+	enc, err := k.Encrypt([]byte("a secret never to be told"))
+	if err != nil {
+		f.Fatalf("Key.Encrypt() failed to encrypt seed data: %v", err)
+	}
+	f.Add(enc)
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		_, _ = k.Decrypt(data)
+	})
+}
+
 func TestKey_Decrypt(t *testing.T) {
 	tests := []struct {
 		name    string
