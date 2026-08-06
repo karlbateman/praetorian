@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 )
 
@@ -48,16 +49,18 @@ func HandleWrap(activeKey string, keys KeyFinder) http.HandlerFunc {
 
 		key, err := keys.Find(activeKey)
 		if err != nil {
-			jsonResponse(w, http.StatusNotFound, &ErrorResponse{
-				Message: err.Error(),
+			log.Printf("wrap: find active key: %v", err)
+			jsonResponse(w, http.StatusInternalServerError, &ErrorResponse{
+				Message: "unable to wrap data",
 			})
 			return
 		}
 
 		enc, err := key.Encrypt(b)
 		if err != nil {
+			log.Printf("wrap: encrypt: %v", err)
 			jsonResponse(w, http.StatusInternalServerError, &ErrorResponse{
-				Message: err.Error(),
+				Message: "unable to wrap data",
 			})
 			return
 		}

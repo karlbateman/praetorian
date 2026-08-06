@@ -7,8 +7,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -96,6 +98,7 @@ func TestHandleWrap_Errors(t *testing.T) {
 		method      string
 		wantStatus  int
 		wantMessage string
+		wantLog     string
 	}{
 		{
 			name:        "encryption failure",
@@ -103,7 +106,8 @@ func TestHandleWrap_Errors(t *testing.T) {
 			body:        strings.NewReader(`{"message": "error"}`),
 			method:      http.MethodPost,
 			wantStatus:  http.StatusInternalServerError,
-			wantMessage: "encryption failed",
+			wantMessage: "unable to wrap data",
+			wantLog:     "wrap: encrypt: encryption failed",
 		},
 		{
 			name:        "invalid JSON body",
@@ -158,13 +162,18 @@ func TestHandleWrap_Errors(t *testing.T) {
 			activeKey:   "missing",
 			body:        strings.NewReader(`{}`),
 			method:      http.MethodPost,
-			wantStatus:  http.StatusNotFound,
-			wantMessage: "root key not found",
+			wantStatus:  http.StatusInternalServerError,
+			wantMessage: "unable to wrap data",
+			wantLog:     "wrap: find active key: root key not found",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var logBuf bytes.Buffer
+			log.SetOutput(&logBuf)
+			defer log.SetOutput(os.Stderr)
+
 			ks := &MockKeystore{}
 			handler := praetorian.HandleWrap(tt.activeKey, ks)
 
@@ -185,6 +194,10 @@ func TestHandleWrap_Errors(t *testing.T) {
 
 			if res.Message != tt.wantMessage {
 				t.Errorf("HandleWrap() got = %q, wantMessage = %q", res.Message, tt.wantMessage)
+			}
+
+			if tt.wantLog != "" && !strings.Contains(logBuf.String(), tt.wantLog) {
+				t.Errorf("HandleWrap() log = %q, wantLog substring = %q", logBuf.String(), tt.wantLog)
 			}
 		})
 	}
