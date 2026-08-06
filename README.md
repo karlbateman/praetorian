@@ -62,14 +62,28 @@ echo $(printf '{"activeKeyId": "1", "rootKeys": {"1": "%s"}}' "$(openssl rand -b
 ```
 
 You can deploy a Praetorian service using the pre-built Docker Image available
-at [karlbateman/praetorian]. When you deploy Praetorian you must have the
+at [karlbateman/praetorian] on Docker Hub, or [ghcr.io/karlbateman/praetorian]
+on the GitHub Container Registry. When you deploy Praetorian you must have the
 `PRAETORIAN_CONFIG` environment variable set with a JSON configuration
 generated using the command above.
 
 > [!CAUTION]
 > Do not expose your Praetorian service to the public internet!
 
+Every image published to either registry is accompanied by a signed build
+provenance attestation, so you can verify it was built from this repository's
+release workflow before you deploy it:
+
+```bash
+gh attestation verify oci://ghcr.io/karlbateman/praetorian:latest \
+  --repo karlbateman/praetorian
+
+gh attestation verify oci://docker.io/karlbateman/praetorian:latest \
+  --repo karlbateman/praetorian
+```
+
 [karlbateman/praetorian]: https://hub.docker.com/r/karlbateman/praetorian
+[ghcr.io/karlbateman/praetorian]: https://github.com/karlbateman/praetorian/pkgs/container/praetorian
 
 ## Usage
 
