@@ -17,7 +17,7 @@ security.
   to be encrypted. This key is used to encrypt and decrypt the data and should
   be symetric.
 - **Key Encryption Key (KEK)**: A higher-level key used to encrypt and protect
-  the DEK. The KEK is an asymetric key stored securely in the Praetorian
+  the DEK. The KEK is a symetric key stored securely in the Praetorian
   environment configuration.
 
 Praetorian provides a rotating Key Encryption Key. This service provides two
