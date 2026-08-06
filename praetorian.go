@@ -45,6 +45,7 @@ var (
 	ErrEnvConfigInvalid      = errors.New("unable to parse config data")
 	ErrInvalidRootKey        = errors.New("unable to decode root key")
 	ErrInvalidRootKeyLength  = errors.New("root key length must be 32 bytes")
+	ErrReservedRootKeyID     = errors.New(`root key id "active" is reserved for the active key`)
 	ErrRootKeyNotFound       = errors.New("root key not found")
 	ErrNewCipherBlock        = errors.New("unable to create AES-256 cipher block")
 	ErrNewGCMWithRandomNonce = errors.New("unable to create cipher with Galois-Counter-Mode")

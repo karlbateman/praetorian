@@ -41,8 +41,18 @@ func TestNewConfig(t *testing.T) {
 			wantErr: praetorian.ErrActiveRootKeyNotFound,
 		},
 		{
+			name:    "reserved root key id",
+			config:  `{"activeKeyId": "1", "rootKeys": {"1": "kSRFQxepULO9UC5SL5pA/mXjbI1GXu9ha2T0yPr3scU=", "active": "UcCUyqWwP/Rv7/8c2zgO5gL1zQ/dTQjBMU84OwYYzN8="}}`,
+			wantErr: praetorian.ErrReservedRootKeyID,
+		},
+		{
 			name:    "valid config",
 			config:  `{"activeKeyId": "1", "rootKeys": {"1": "kSRFQxepULO9UC5SL5pA/mXjbI1GXu9ha2T0yPr3scU="}}`,
+			wantErr: nil,
+		},
+		{
+			name:    "active key legitimately uses reserved id",
+			config:  `{"activeKeyId": "active", "rootKeys": {"active": "kSRFQxepULO9UC5SL5pA/mXjbI1GXu9ha2T0yPr3scU="}}`,
 			wantErr: nil,
 		},
 	}

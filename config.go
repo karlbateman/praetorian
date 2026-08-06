@@ -44,6 +44,12 @@ func NewConfig() (*Config, error) {
 		RootKeys:    make(map[string][]byte),
 	}
 	for i, m := range env.RootKeys {
+		// ActiveKeyID is used as an alias for whichever key is active, so a
+		// non-active key claiming that id would collide in the keystore. Map
+		// iteration order is randomised, making the winner vary per process.
+		if i == ActiveKeyID && i != env.ActiveKeyID {
+			return nil, ErrReservedRootKeyID
+		}
 		k, err := base64.StdEncoding.DecodeString(m)
 		if err != nil {
 			return nil, ErrInvalidRootKey
