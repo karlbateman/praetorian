@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -60,7 +61,7 @@ func (s *Server) routes() {
 // Start launches the server which listens for HTTP requests.
 func (s *Server) Start() error {
 	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
 		log.Printf("listening on %s...\n", s.Server.Addr)
