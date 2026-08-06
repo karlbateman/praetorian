@@ -121,6 +121,13 @@ func TestHandleUnwrap_Errors(t *testing.T) {
 			wantMessage: "invalid JSON",
 		},
 		{
+			name:        "body too large",
+			body:        bytes.NewReader(make([]byte, 2<<20)),
+			method:      http.MethodPost,
+			wantStatus:  http.StatusBadRequest,
+			wantMessage: "invalid JSON",
+		},
+		{
 			name:        "missing root key",
 			body:        strings.NewReader(`{"id": "missing", "token": "ZW5jcnlwdGVkIG1lc3NhZ2U="}`),
 			method:      http.MethodPost,

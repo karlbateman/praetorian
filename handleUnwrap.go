@@ -23,6 +23,9 @@ func HandleUnwrap(keys KeyFinder) http.HandlerFunc {
 			return
 		}
 
+		maxBytes := int64(1 << 20) // 1MB limit, matching /wrap
+		r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+
 		var b WrapResponse
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
 			jsonResponse(w, http.StatusBadRequest, &ErrorResponse{
