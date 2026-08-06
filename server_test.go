@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"strings"
 	"syscall"
@@ -172,5 +173,48 @@ func TestServer_StartForcedShutdown(t *testing.T) {
 	wantSubstring := "forced shutdown"
 	if err == nil || !strings.Contains(err.Error(), wantSubstring) {
 		t.Errorf("Server.Start() error = %v, want substring %q", err, wantSubstring)
+	}
+}
+
+// TestServer_StartListenError guards against a regression where a failure to
+// bind the listening address (e.g. the port already being in use) was only
+// logged from the background goroutine, leaving Start blocked on <-stop
+// forever instead of returning an error.
+func TestServer_StartListenError(t *testing.T) {
+	t.Setenv(praetorian.EnvKey, testConfig)
+	t.Setenv("PORT", "8081")
+
+	log.SetOutput(io.Discard)
+	defer log.SetOutput(nil)
+
+	ln, err := net.Listen("tcp", ":8081")
+	if err != nil {
+		t.Fatalf("net.Listen() failed to occupy the port: %v", err)
+	}
+	defer ln.Close()
+
+	cfg, err := praetorian.NewConfig()
+	if err != nil {
+		t.Fatalf("NewConfig() failed to create config: %v", err)
+	}
+	ks, err := praetorian.NewKeystore(cfg)
+	if err != nil {
+		t.Fatalf("NewKeystore() failed to create keystore: %v", err)
+	}
+	srv := praetorian.NewServer(ks)
+
+	startErr := make(chan error, 1)
+	go func() {
+		startErr <- srv.Start()
+	}()
+
+	select {
+	case err := <-startErr:
+		wantSubstring := "listen"
+		if err == nil || !strings.Contains(err.Error(), wantSubstring) {
+			t.Errorf("Server.Start() error = %v, want substring %q", err, wantSubstring)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Server.Start() did not return after a listen failure; it appears to be hanging")
 	}
 }

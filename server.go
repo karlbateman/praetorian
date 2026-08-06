@@ -58,19 +58,31 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/unwrap", HandleUnwrap(s.keys))
 }
 
-// Start launches the server which listens for HTTP requests.
+// Start launches the server which listens for HTTP requests, and blocks
+// until it either fails to bind or receives a shutdown signal.
 func (s *Server) Start() error {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
+	listenErr := make(chan error, 1)
 	go func() {
 		log.Printf("listening on %s...\n", s.Server.Addr)
 		if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Println("server error:", err)
+			listenErr <- err
+			return
 		}
+		listenErr <- nil
 	}()
 
-	<-stop
+	select {
+	case err := <-listenErr:
+		if err != nil {
+			return fmt.Errorf("listen: %w", err)
+		}
+		return nil
+	case <-stop:
+	}
+
 	log.Println("performing graceful shutdown...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
