@@ -23,10 +23,14 @@ type Keystore struct {
 func NewKeystore(cfg *Config) (*Keystore, error) {
 	ks := &Keystore{}
 	for id, val := range cfg.RootKeys {
-		if id == cfg.ActiveKeyID {
-			ks.keys.Store(ActiveKeyID, &key{id, val})
+		k, err := newKey(id, val)
+		if err != nil {
+			return nil, err
 		}
-		ks.keys.Store(id, &key{id, val})
+		if id == cfg.ActiveKeyID {
+			ks.keys.Store(ActiveKeyID, k)
+		}
+		ks.keys.Store(id, k)
 	}
 	return ks, nil
 }
@@ -47,6 +51,21 @@ func (ks *Keystore) Find(id string) (RootKey, error) {
 type key struct {
 	id    string
 	value []byte
+	aead  cipher.AEAD
+}
+
+// newKey builds the AEAD once, so the AES key schedule is not recomputed on
+// every wrap and unwrap.
+func newKey(id string, value []byte) (*key, error) {
+	block, err := aes.NewCipher(value)
+	if err != nil {
+		return nil, ErrNewCipherBlock
+	}
+	aead, err := cipher.NewGCMWithRandomNonce(block)
+	if err != nil {
+		return nil, ErrNewGCMWithRandomNonce
+	}
+	return &key{id: id, value: value, aead: aead}, nil
 }
 
 // ID is a getter which returns the keys unique identifier.
@@ -56,35 +75,14 @@ func (k *key) ID() string {
 
 // Encrypt the given data using the current root key.
 func (k *key) Encrypt(d []byte) ([]byte, error) {
-	gcm, err := k.gcm()
-	if err != nil {
-		return nil, err
-	}
-	return gcm.Seal(nil, nil, d, nil), nil
+	return k.aead.Seal(nil, nil, d, nil), nil
 }
 
 // Decrypt the given data using the current root key.
 func (k *key) Decrypt(d []byte) ([]byte, error) {
-	gcm, err := k.gcm()
-	if err != nil {
-		return nil, err
-	}
-	ci, err := gcm.Open(nil, nil, d, nil)
+	pt, err := k.aead.Open(nil, nil, d, nil)
 	if err != nil {
 		return nil, ErrGCMOpen
 	}
-	return ci, nil
-}
-
-// gcm builds the AEAD cipher used to encrypt and decrypt with this key.
-func (k *key) gcm() (cipher.AEAD, error) {
-	block, err := aes.NewCipher(k.value)
-	if err != nil {
-		return nil, ErrNewCipherBlock
-	}
-	gcm, err := cipher.NewGCMWithRandomNonce(block)
-	if err != nil {
-		return nil, ErrNewGCMWithRandomNonce
-	}
-	return gcm, nil
+	return pt, nil
 }

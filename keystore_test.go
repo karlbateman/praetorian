@@ -9,6 +9,32 @@ import (
 	"github.com/karlbateman/praetorian"
 )
 
+func TestNewKeystore(t *testing.T) {
+	tests := []struct {
+		name    string
+		cfg     *praetorian.Config
+		wantErr error
+	}{
+		{
+			name: "invalid key material",
+			cfg: &praetorian.Config{
+				ActiveKeyID: "1",
+				RootKeys:    map[string][]byte{"1": []byte("too short")},
+			},
+			wantErr: praetorian.ErrNewCipherBlock,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := praetorian.NewKeystore(tt.cfg)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("NewKeystore() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestKeystore_Find(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -174,5 +200,60 @@ func TestKey_Decrypt(t *testing.T) {
 				t.Errorf("Key.Decrypt() got = %v, wantData = %v", got, wantData)
 			}
 		})
+	}
+}
+
+// BenchmarkKey_Encrypt guards against regressions in the per-call cost of
+// Encrypt now that the AEAD is built once in NewKeystore rather than on
+// every call; b.N should not scale with AES key-schedule setup cost.
+func BenchmarkKey_Encrypt(b *testing.B) {
+	b.Setenv(praetorian.EnvKey, testConfig)
+	cfg, err := praetorian.NewConfig()
+	if err != nil {
+		b.Fatalf("NewConfig() failed to create config: %v", err)
+	}
+	ks, err := praetorian.NewKeystore(cfg)
+	if err != nil {
+		b.Fatalf("NewKeystore() failed to create keystore: %v", err)
+	}
+	k, err := ks.Find("1")
+	if err != nil {
+		b.Fatalf("Keystore.Find() failed to return key: %v", err)
+	}
+	data := []byte("a secret never to be told")
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if _, err := k.Encrypt(data); err != nil {
+			b.Fatalf("Key.Encrypt() failed: %v", err)
+		}
+	}
+}
+
+// BenchmarkKey_Decrypt mirrors BenchmarkKey_Encrypt for the decrypt path.
+func BenchmarkKey_Decrypt(b *testing.B) {
+	b.Setenv(praetorian.EnvKey, testConfig)
+	cfg, err := praetorian.NewConfig()
+	if err != nil {
+		b.Fatalf("NewConfig() failed to create config: %v", err)
+	}
+	ks, err := praetorian.NewKeystore(cfg)
+	if err != nil {
+		b.Fatalf("NewKeystore() failed to create keystore: %v", err)
+	}
+	k, err := ks.Find("1")
+	if err != nil {
+		b.Fatalf("Keystore.Find() failed to return key: %v", err)
+	}
+	enc, err := k.Encrypt([]byte("a secret never to be told"))
+	if err != nil {
+		b.Fatalf("Key.Encrypt() failed to encrypt seed data: %v", err)
+	}
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if _, err := k.Decrypt(enc); err != nil {
+			b.Fatalf("Key.Decrypt() failed: %v", err)
+		}
 	}
 }
