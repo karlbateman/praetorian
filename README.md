@@ -94,7 +94,7 @@ wrap a data encryption key using the following `curl` request.
 ```bash
 curl --silent \
   --request POST \
-  --data '{"key": "abc123"}' \
+  --data "$(printf '{"key": "%s"}' "$(openssl rand -base64 32)")" \
   http://localhost:3000/wrap
 ```
 
