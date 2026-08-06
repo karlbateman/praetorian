@@ -6,8 +6,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -91,13 +93,15 @@ func TestHandleUnwrap_Errors(t *testing.T) {
 		method      string
 		wantStatus  int
 		wantMessage string
+		wantLog     string
 	}{
 		{
 			name:        "decryption failure",
 			body:        strings.NewReader(`{"id": "1", "token": "ZXJyb3I="}`),
 			method:      http.MethodPost,
 			wantStatus:  http.StatusInternalServerError,
-			wantMessage: "decryption failed",
+			wantMessage: "unable to unwrap data",
+			wantLog:     "unwrap: decrypt: decryption failed",
 		},
 		{
 			name:        "invalid JSON body",
@@ -131,8 +135,9 @@ func TestHandleUnwrap_Errors(t *testing.T) {
 			name:        "missing root key",
 			body:        strings.NewReader(`{"id": "missing", "token": "ZW5jcnlwdGVkIG1lc3NhZ2U="}`),
 			method:      http.MethodPost,
-			wantStatus:  http.StatusNotFound,
-			wantMessage: "root key not found",
+			wantStatus:  http.StatusUnprocessableEntity,
+			wantMessage: "data authentication failed",
+			wantLog:     "unwrap: find key: root key not found",
 		},
 		{
 			name:        "invalid encrypted data",
@@ -141,10 +146,21 @@ func TestHandleUnwrap_Errors(t *testing.T) {
 			wantStatus:  http.StatusUnprocessableEntity,
 			wantMessage: "data authentication failed",
 		},
+		{
+			name:        "invalid token encoding",
+			body:        strings.NewReader(`{"id": "1", "token": "not-valid-base64!"}`),
+			method:      http.MethodPost,
+			wantStatus:  http.StatusBadRequest,
+			wantMessage: "invalid token encoding",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var logBuf bytes.Buffer
+			log.SetOutput(&logBuf)
+			defer log.SetOutput(os.Stderr)
+
 			ks := &MockKeystore{}
 			handler := praetorian.HandleUnwrap(ks)
 
@@ -165,6 +181,10 @@ func TestHandleUnwrap_Errors(t *testing.T) {
 
 			if res.Message != tt.wantMessage {
 				t.Errorf("HandleWrap() got = %q, wantMessage = %q", res.Message, tt.wantMessage)
+			}
+
+			if tt.wantLog != "" && !strings.Contains(logBuf.String(), tt.wantLog) {
+				t.Errorf("HandleWrap() log = %q, wantLog substring = %q", logBuf.String(), tt.wantLog)
 			}
 		})
 	}

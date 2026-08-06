@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 )
 
@@ -36,8 +37,9 @@ func HandleUnwrap(keys KeyFinder) http.HandlerFunc {
 
 		key, err := keys.Find(b.ID)
 		if err != nil {
-			jsonResponse(w, http.StatusNotFound, &ErrorResponse{
-				Message: err.Error(),
+			log.Printf("unwrap: find key: %v", err)
+			jsonResponse(w, http.StatusUnprocessableEntity, &ErrorResponse{
+				Message: "data authentication failed",
 			})
 			return
 		}
@@ -45,7 +47,7 @@ func HandleUnwrap(keys KeyFinder) http.HandlerFunc {
 		token, err := base64.StdEncoding.DecodeString(b.Token)
 		if err != nil {
 			jsonResponse(w, http.StatusBadRequest, &ErrorResponse{
-				Message: err.Error(),
+				Message: "invalid token encoding",
 			})
 			return
 		}
@@ -58,8 +60,9 @@ func HandleUnwrap(keys KeyFinder) http.HandlerFunc {
 				})
 				return
 			}
+			log.Printf("unwrap: decrypt: %v", err)
 			jsonResponse(w, http.StatusInternalServerError, &ErrorResponse{
-				Message: err.Error(),
+				Message: "unable to unwrap data",
 			})
 			return
 		}
