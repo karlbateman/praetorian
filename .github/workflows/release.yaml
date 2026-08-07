@@ -20,32 +20,29 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ["1.24.x"]
+        go-version: ["1.x"]
     steps:
       - uses: actions/checkout@v5
-
       - name: Setup Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
+          cache: false
           go-version: ${{ matrix.go-version }}
-
       - run: go install honnef.co/go/tools/cmd/staticcheck@latest
-
-      - name: Check
-        run: make checks
+      - run: make checks
 
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ["1.24.x"]
+        go-version: ["1.x"]
     steps:
       - uses: actions/checkout@v5
       - name: Setup Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
+          cache: false
           go-version: ${{ matrix.go-version }}
-
       - run: make tests
 
   prerelease:
