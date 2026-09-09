@@ -1,3 +1,3 @@
-#!/usr/bin/env bash
+#!/bin/bash
 test -z "$(gofmt -l .)"
 staticcheck ./...

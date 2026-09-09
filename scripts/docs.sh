@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 go doc .
 echo
 go doc ./cmd

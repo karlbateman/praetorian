@@ -1,2 +1,2 @@
-#!/usr/bin/env bash
+#!/bin/bash
 go test -race -test.v
